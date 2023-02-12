@@ -151,3 +151,50 @@
                 ```
             * "Out of bound": the program "panics" if the index is larger than the length of the array - this is a "Runtime error" because the compiler cannot know what the user will input until runtime
             * First example of Rust's memory safety principle: the program does not waste time on continuing an invalid memory access
+    * Function
+        * Parameters
+            * MUST declare the type of the parameter
+            * Separate multiple parameters by comma
+        * Expression VS Statements
+            * Statements
+                * Instructions that perform some action
+                * Do not return a value
+                * Ends with a semicolon (`;`)
+                * `let y = 6;`, a function definition
+            * Expressions
+                * Evaluate to a resultant value
+                * Does NOT end with a semicolon (`;`)
+                * Calling a function, a macro, a new scope block created with `{}`
+        * Return values
+            * We do not name the returned value
+            * Declare type via (`->`)
+            * Return value ~= value of the last expression in the function's body (implicit)
+                * Can also return early by using `return` keyword and specify a value
+            * ex. this works 🟢
+                ```
+                fn five() -> i32 {
+                    5
+                }
+
+                fn main() {
+                    let x = five();
+
+                    println!("The value of x is: {x}");
+                }
+                ```
+                5 is an expression
+
+                ```
+                fn main() {
+                    let x = plus_one(5);
+
+                    println!("The value of x is: {x}");
+                }
+
+                fn plus_one(x: i32) -> i32 {
+                    x + 1
+                }
+                ```
+                x + 1 is an expression
+
+                If we added `;` to the end of x + 1, this function will fail with a mismatched type error because it's expecting a `i32` type instead of a `unit` `()` type.
