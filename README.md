@@ -83,10 +83,10 @@
     * Rust is zero-indexed
     * Scalar
         * Integer
-            * Unsigned
+            * Unsigned (`u32`)
                 * 0 to 2n - 1
                 * ex. an u8 can store numbers from 0 to 28 - 1, which equals 0 to 255
-            * Signed
+            * Signed (`i32`)
                 * -(2n - 1) to 2n - 1 - 1 inclusive, where n is the number of bits that variant uses
                 * ex. an i8 can store numbers from -(27) to 27 - 1, which equals -128 to 127
             * Integer division truncates toward zero to the nearest integer
@@ -200,3 +200,113 @@
             x + 1 is an expression
 
             If we added `;` to the end of x + 1, this function will fail with a mismatched type error because it's expecting a `i32` type instead of a `unit` `()` type.
+* Control Flow
+    * `if`
+        * "arm": block of code associated with conditions
+        * conditions MUST be boolean because Rust will not automatically try to convert non-Boolean types to a Boolean (like Javascript or Ruby)
+        * Rust only executes the block for the first true condition, and once it finds one, it doesn’t even check the rest.
+            * general anatomy:
+            ```
+            if boolean_condition {
+
+            } else if another_boolean_condition {
+
+            } else {
+
+            }
+            ```
+        * might want to refactor if there are too many if conditions
+        * an expression that can be on the right side of the `let` keyword to assign a variable
+            * blocks of code evaluate to the last expression in them, and numbers by themselves are also expressions
+            * both the `if` arm and the `else` arm have to be the same data type
+            * ex.
+            ```
+            let number = if condition { 5 } else { 6 };
+            ```
+    * loops
+        * `loop`: infinite loop until `break` keyword or manually crashing the program
+            * `continue`: keyword to skip a block of code to continue the iteration
+            * `break` expression: next to `break` keyword, the expression can be evaluated to a result
+            * ex.
+            ```
+            fn main() {
+                let mut counter = 0;
+
+                let result = loop {
+                    counter += 1;
+
+                    if counter == 10 {
+                        break counter * 2;
+                    }
+                };
+
+                println!("The result is {result}");
+            }
+            ```
+            * loop label: 
+                * for loops within loops, break and continue apply to the innermost loop at that point
+                * begin with a single quote
+                * can break outerloop by doing `break 'outerloop_label;`
+                * ex. 
+                ```
+                fn main() {
+                    let mut count = 0;
+                    'counting_up: loop {
+                        println!("count = {count}");
+                        let mut remaining = 10;
+
+                        loop {
+                            println!("remaining = {remaining}");
+                            if remaining == 9 {
+                                break;
+                            }
+                            if count == 2 {
+                                break 'counting_up;
+                            }
+                            remaining -= 1;
+                        }
+
+                        count += 1;
+                    }
+                    println!("End count = {count}");
+                }
+                ```  
+        * `while`: replace the pattern of using a combination of `loop`, `if`, `else`, and `break`
+            * ex.
+            ```
+            fn main() {
+                let mut number = 3;
+
+                while number != 0 {
+                    println!("{number}!");
+
+                    number -= 1;
+                }
+
+                println!("LIFTOFF!!!");
+            }
+            ```
+        * `for`: loop over the elements of a collection
+            * technically could use a `while` loop but it's error prone if the test condition or index value is incorrect
+            * also slow because of an extra condition check for whether the index is within the bounds for every iteration
+            * ex.
+            ```
+            fn main() {
+                let a = [10, 20, 30, 40, 50];
+
+                for element in a {
+                    println!("the value is: {element}");
+                }
+            }
+            ```
+            * ex. Using the `Range` library
+            ```
+            fn main() {
+                for number in (1..4).rev() {
+                    println!("{number}!");
+                }
+                println!("LIFTOFF!!!");
+            }
+            ```
+            * safe and concise
+            
