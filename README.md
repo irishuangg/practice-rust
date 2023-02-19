@@ -309,4 +309,302 @@
             }
             ```
             * safe and concise
+
+## Lesson 4
+* Ownership: a set of rules that govern how a Rust program manages memory
+    
+    * Memory management:
+        - garbage collection that regularly looks for no-longer-used memory as the program runs
+        - the programmer must explicitly allocate and free the memory
+        - **Rust**: 
+        > system of ownerships with a set of rules that the compiler checks
+    
+    * How memory is stored:
+        - Stack:
+            * All data stored must have a known, fixed size
+            * LIFO (last in, first out)
+            * Think of "pile of plates"
+        - Heap: 
+            * Empty space big enough *allocated* for oncoming data
+            * *Pointer* is the address to the allocated space
+                * Pointers can be stored in a stack because of their known, fixed size
+                * Follow the pointer to get to the actual data
+            * Think of "reserving seats in a restaurant"
+            * Accessing data in the heap is slower and more work because of bookkeeping
+        - A processor can do a better job if the data accessed is closer to each other (stack > heap)
+        - Ownership addresses:
+            * Keeping track of what parts of code are using what data on the heap
+            * Minimizing the amount of duplicate data on the heap
+            * Cleaning up unused data on the heap so you don’t run out of space
+
+    * Ownership rules:
+        > * Each value in Rust has an owner. 
+        > * There can only be one owner at a time. 
+        > * When the owner goes out of scope, the value will be dropped.
+
+    * Example: string literal VS `String`
+        * string literal:
+            * known, fixed size at compile time
+            * immutable
+        * `String`:
+            * blob of memory
+            * unknown size at compile time
+            * might change during runtime
+            * mutable
+        * ex.
+        ```
+        {
+            let s = String::from("hello"); // s is valid from this point forward
+
+            // do stuff with s
+        }                       // this scope is now over, 
+                                // and s is no longer valid
+
+        ```
+        -> Rust calls a `drop` function automatically at the closing curly bracket, the memory requested for `s` is now returned
+    
+    * Move
+        * If two variables share the same value:
+            * ex.
+            ```
+            let s1 = String::from("hello");
+            let s2 = s1;
+
+            println!("{}, world!", s1);
+            ```
+            * pointer, the length, and the capacity that are on the stack are copied
+            * data on the heap is NOT copied
+            \
+            \
+            ![Two variables sharing the same data](https://doc.rust-lang.org/book/img/trpl04-04.svg)
             
+            * not called "shallow copy" even though seems like it
+            * "ownership is *moved* from s1 to s2"
+    
+    * Copy
+        * is not automatic
+        * automatic copying is often inexpensive (stack data only)
+        * To "deep copy" a variable that uses heap data, not just the stack data, we need to use a `clone` method
+            * ex.
+            ```
+            let s1 = String::from("hello");
+            let s2 = s1.clone();
+
+            println!("s1 = {}, s2 = {}", s1, s2);
+            ```
+            * visual indicator that some expensive code is being executed
+            \
+            \
+            ![Deep copy a variable](https://doc.rust-lang.org/book/img/trpl04-03.svg) 
+    
+    * Move/Copy rules:
+        > * Stack data can be copied by default
+        > * Heap data can be moved by default
+        > * If a type implemented the `Drop` trait, it cannot also implement the `Copy` trait
+        > * Only simple scalar values and nothing requires allocation or is a form of resource can implement the `Copy` trait
+            >   * ex.
+            >     * All the integer types, such as `u32`.
+            >     * The Boolean type, `bool`, with values true and false.
+            >     * All the floating-point types, such as `f64`.
+            >     * The character type, `char`.
+            >     * Tuples, if they only contain types that also implement Copy. For example, (`i32`, `i32`) implements Copy, but (`i32`, `String`) does not.
+
+    * Move/copy rules apply to passing a value to a function the same as assigning a value to a variable
+
+    * Ownership transfer:
+        * Value returned from a function can be transferred to another variable
+        * But tedious if anything passed in has to be passed back to make use of it again
+        * ex.
+        ```
+        fn main() {
+            let s1 = gives_ownership();         // gives_ownership moves its return
+                                                // value into s1
+
+            let s2 = String::from("hello");     // s2 comes into scope
+
+            let s3 = takes_and_gives_back(s2);  // s2 is moved into
+                                                // takes_and_gives_back, which also
+                                                // moves its return value into s3
+        } // Here, s3 goes out of scope and is dropped. s2 was moved, so nothing
+        // happens. s1 goes out of scope and is dropped.
+
+        fn gives_ownership() -> String {             // gives_ownership will move its
+                                                    // return value into the function
+                                                    // that calls it
+
+            let some_string = String::from("yours"); // some_string comes into scope
+
+            some_string                              // some_string is returned and
+                                                    // moves out to the calling
+                                                    // function
+        }
+
+        // This function takes a String and returns one
+        fn takes_and_gives_back(a_string: String) -> String { // a_string comes into
+                                                            // scope
+
+            a_string  // a_string is returned and moves out to the calling function
+        }
+        ```
+    
+    * Reference (`&`): use a value without transferring ownership
+        * like a pointer, a reference is an address to where the data is stored
+        * unlike a pointer, a reference is guruanteed to point to a valid value of a particular type for the life of that reference
+        * the value it points to will not be dropped when the reference stops being used
+        * "Borrowing": creating a reference
+        * ex.
+        ```
+        fn main() {
+            let s1 = String::from("hello");
+
+            let (s2, len) = calculate_length(s1);
+
+            println!("The length of '{}' is {}.", s2, len);
+        }
+
+        fn calculate_length(s: String) -> (String, usize) {
+            let length = s.len(); // len() returns the length of a String
+
+            (s, length)
+        }
+
+
+        --> Can be rewritten using reference like below:
+
+
+        fn main() {
+            let s1 = String::from("hello");
+
+            let len = calculate_length(&s1);
+
+            println!("The length of '{}' is {}.", s1, len);
+        }
+
+        fn calculate_length(s: &String) -> usize {
+            s.len()
+        } // Here, s goes out of scope. But because it does not have ownership of what
+          // it refers to, it is not dropped.
+        ```
+        * immutable: trying to modify a reference will have an error `cannot borrow ``*some_string`` as mutable, as it is behind a `&` reference`
+            * can make a reference mutable by doing so:
+                * ex.
+                ```
+                fn main() {
+                    let mut s = String::from("hello");
+
+                    change(&mut s);
+                }
+
+                fn change(some_string: &mut String) {
+                    some_string.push_str(", world");
+                }
+                ```
+            * if you have a mutable reference to a value, you can have NO other references to that value in the same scope
+                * ex. this works 🟢
+
+                ```
+                let mut s = String::from("hello");
+
+                {
+                    let r1 = &mut s;
+                } // r1 goes out of scope here, so we can make a new reference with no problems.
+
+                let r2 = &mut s;
+                ```
+
+                this does not work 🔴, will fail with an error `cannot borrow `s` as mutable more than once at a time`
+
+                ```
+                let mut s = String::from("hello");
+
+                let r1 = &mut s;
+                let r2 = &mut s;
+
+                println!("{}, {}", r1, r2);
+                ```
+                * prevents "data race" where 3 behaviors can occur:
+                    * Two or more pointers access the same data at the same time.
+                    * At least one of the pointers is being used to write to the data.
+                    * There’s no mechanism being used to synchronize access to the data.
+
+                * same applies to COMBINING mutable and immutable references
+                * ex. this works 🟢
+                    ```
+                    let mut s = String::from("hello");
+
+                    let r1 = &s; // no problem
+                    let r2 = &s; // no problem
+                    println!("{} and {}", r1, r2);
+                    // variables r1 and r2 will not be used after this point
+
+                    let r3 = &mut s; // no problem
+                    println!("{}", r3);
+                    ```
+
+                    this does not work 🔴, will throw an error `cannot borrow `s` as mutable because it is also borrowed as immutable`
+
+                    ```
+                    let mut s = String::from("hello");
+
+                    let r1 = &s; // no problem
+                    let r2 = &s; // no problem
+                    let r3 = &mut s; // BIG PROBLEM
+
+                    println!("{}, {}, and {}", r1, r2, r3);
+                    ```
+
+            * Dangling reference: a pointer that references a location in memory that may have been given to someone else
+                * **NOT RUST**: if you have a reference to some data, the compiler will ensure that the data will not go out of scope before the reference to the data does
+                
+            * Slices: reference a contiguous sequence of elements in a collection rather than the whole collection
+                * Range syntax (`..`): specify a starting index and/or an ending index (one more than the last position)
+                    * ex. 
+                    ```
+                    let s = String::from("hello");
+
+                    &s[0..2] and &s[..2] both give "he"
+
+                    &s[3..len] and &s[3..] both give "lo"
+
+                    &s[0..len] and &s[..] both give "hello"
+
+                    NOTE: only works for ASCII, UTF-8 needs special handling
+                    ```
+                * literals and `String` values both can be sliced, so the code can be refactored to be more general and useful without losing any functionality
+                    * ex.
+                    ```
+                    fn main() {
+                        let my_string = String::from("hello world");
+
+                        // `first_word` works on slices of `String`s, whether partial or whole
+                        let word = first_word(&my_string[0..6]);
+                        let word = first_word(&my_string[..]);
+                        // `first_word` also works on references to `String`s, which are equivalent
+                        // to whole slices of `String`s
+                        let word = first_word(&my_string);
+
+                        let my_string_literal = "hello world";
+
+                        // `first_word` works on slices of string literals, whether partial or whole
+                        let word = first_word(&my_string_literal[0..6]);
+                        let word = first_word(&my_string_literal[..]);
+
+                        // Because string literals *are* string slices already,
+                        // this works too, without the slice syntax!
+                        let word = first_word(my_string_literal);
+                    }
+                    ```
+                * array slices
+                    * ex.
+                    ```
+                    let a = [1, 2, 3, 4, 5];
+
+                    let slice = &a[1..3];
+
+                    assert_eq!(slice, &[2, 3]);
+                    ```
+
+    * Reference rules:
+        > * At any given time, you can have either one mutable reference or any number of immutable references.
+        > * References must always be valid.
+
