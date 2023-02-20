@@ -608,3 +608,259 @@
         > * At any given time, you can have either one mutable reference or any number of immutable references.
         > * References must always be valid.
 
+## Lesson 5
+
+* Struct: create custom data types meaningful for your domain by associating data and naming them clearly
+    * like tuples, elements in a struct can be different types
+    * unlike tuples, can name elements instead of position-based, relying on the order
+    * "fields": the elements within a struct
+    * ex.
+    ```
+    struct User {
+        active: bool,
+        username: String,
+        email: String,
+        sign_in_count: u64,
+    }
+    ```
+    * "instance": to use the struct, and the fields do not have to be defined in the same order as they were declared in the struct definition
+    * ex.
+    ```
+    fn main() {
+        let user1 = User {
+            active: true,
+            username: String::from("someusername123"),
+            email: String::from("someone@example.com"),
+            sign_in_count: 1,
+        };
+    }
+    ```
+    * use dot notation to access the element in a struct
+        * the instance must be mutable to be able to change the element's value
+    * ex.
+    ```
+    fn main() {
+        let mut user1 = User {
+            active: true,
+            username: String::from("someusername123"),
+            email: String::from("someone@example.com"),
+            sign_in_count: 1,
+        };
+
+        user1.email = String::from("anotheremail@example.com");
+    }
+    ```
+    * *field init shorthand* avoids having to repeat the values of the function parameters for the struct fields
+    * ex.
+    ```
+    fn build_user(email: String, username: String) -> User {
+        User {
+            active: true,
+            username,
+            email,
+            sign_in_count: 1,
+        }
+    }
+
+    --> does the same job as
+
+    fn build_user(email: String, username: String) -> User {
+        User {
+            active: true,
+            username: username,
+            email: email,
+            sign_in_count: 1,
+        }
+    }
+    ```
+    * *struct update* uses less code to copy a struct's values to a new struct instance
+        * the `..user1` must come last
+        * the fields of change can come in any order
+        * the fields of change mean the ownership has moved to the new struct instance, so only the unchanged fields that have a `Copy` trait can be used in the source struct instance 
+            * (ie, `user2` now has a new `email` value with a new `String` implementation
+            * we can still use `user1`'s `active` and `sign_in_count` fields
+            * but we cannot access `user1`'s `username` because `String` type does not have a `Copy` trait and its ownership has been transferred to `user2`
+    * ex.
+    ```
+    fn main() {
+        // --snip--
+
+        let user2 = User {
+            email: String::from("another@example.com"),
+            ..user1
+        };
+    }
+
+    --> does the same job as
+
+    fn main() {
+        // --snip--
+
+        let user2 = User {
+            active: user1.active,
+            username: user1.username,
+            email: String::from("another@example.com"),
+            sign_in_count: user1.sign_in_count,
+        };
+    }
+    ```
+    * *tuple struct* is a tuple (no names associated to each field) with a struct name
+        * good for differentiating tuples even if they're structurally the same (same data type, same number of elements)
+        * avoid tedious naming of each element
+        * ex.
+        ```
+        struct Color(i32, i32, i32);
+        struct Point(i32, i32, i32);
+
+        fn main() {
+            let black = Color(0, 0, 0);
+            let origin = Point(0, 0, 0);
+        }
+        ```
+    * *unit-like struct* behaves similarly to `()`, the unit type
+        * useful for implementing a trait on some type that don't have any data that you want to store in the type itself
+        * no need for curly brackets or parentheses
+        * ex.
+        ```
+        struct AlwaysEqual;
+
+        fn main() {
+            let subject = AlwaysEqual;
+        }
+        ```
+    * *Methods* are defined in the context of a struct (or an enum or a trait object)
+        * `impl` block with a `self` in the parameter
+        * `&self` is short for `self: &Self`
+            * `&mut self`: enables changing the instance as part of what the method does
+            * `self`: just self is rare, used when the method transforms self into something else and you want to prevent the caller from using the original instance after the transformation
+        * ex.
+        ```
+        #[derive(Debug)]
+        struct Rectangle {
+            width: u32,
+            height: u32,
+        }
+
+        impl Rectangle {
+            fn area(&self) -> u32 {
+                self.width * self.height
+            }
+        }
+
+        fn main() {
+            let rect1 = Rectangle {
+                width: 30,
+                height: 50,
+            };
+
+            println!(
+                "The area of the rectangle is {} square pixels.",
+                rect1.area()
+            );
+        }
+        ```
+        * the method name can be the same as the struct field name
+            * "getters": name for this kind of method
+                * useful when the field is private and method is public
+            * **Rust**: not implemented automatically like other languages do
+        * ex.
+        ```
+        impl Rectangle {
+            fn width(&self) -> bool {
+                self.width > 0
+            }
+        }
+
+        fn main() {
+            let rect1 = Rectangle {
+                width: 30,
+                height: 50,
+            };
+
+            if rect1.width() {
+                println!("The rectangle has a nonzero width; it is {}", rect1.width);
+            }
+        }
+        ```
+        * defining multiple methods
+            * the `&Rectangle` (referencing Rectangle) is used because we need `main` to keep the ownership of `rect2` so the `can_hold` method can use it
+            * ex.
+            ```
+            impl Rectangle {
+                fn area(&self) -> u32 {
+                    self.width * self.height
+                }
+
+                fn can_hold(&self, other: &Rectangle) -> bool {
+                    self.width > other.width && self.height > other.height
+                }
+            }
+
+            fn main() {
+                let rect1 = Rectangle {
+                    width: 30,
+                    height: 50,
+                };
+                let rect2 = Rectangle {
+                    width: 10,
+                    height: 40,
+                };
+                let rect3 = Rectangle {
+                    width: 60,
+                    height: 45,
+                };
+
+                println!("Can rect1 hold rect2? {}", rect1.can_hold(&rect2));
+                println!("Can rect1 hold rect3? {}", rect1.can_hold(&rect3));
+            }
+            ```
+        * *Associated function* is associated with the type named after the `impl`
+            * `self` is not the first parameter (thus not a method)
+            * NO need for an instance of the type to work with
+            * ex. `String::from`
+            * used for constructors that will return a new instance of the struct
+                * `new`: is NOT a special name or built into the language
+            * namespaced by `::`
+            * ex.
+            ```
+            impl Rectangle {
+                fn square(size: u32) -> Self {
+                    Self {
+                        width: size,
+                        height: size,
+                    }
+                }
+            }
+
+            --> to call this associated function
+
+            let sq = Rectangle::sq(3);
+            ```
+        
+        * Multiple `impl` methods are allowed but mostly useful for generic types and traits 
+        * ex.
+        ```
+        impl Rectangle {
+            fn area(&self) -> u32 {
+                self.width * self.height
+            }
+
+            fn can_hold(&self, other: &Rectangle) -> bool {
+                self.width > other.width && self.height > other.height
+            }
+        }
+
+        --> the same as
+
+        impl Rectangle {
+            fn area(&self) -> u32 {
+                self.width * self.height
+            }
+        }
+
+        impl Rectangle {
+            fn can_hold(&self, other: &Rectangle) -> bool {
+                self.width > other.width && self.height > other.height
+            }
+        }
+        ```
