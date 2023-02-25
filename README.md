@@ -215,7 +215,7 @@
 
             }
             ```
-        * might want to refactor if there are too many if conditions
+        * might want to refactor using `match` if there are too many if conditions
         * an expression that can be on the right side of the `let` keyword to assign a variable
             * blocks of code evaluate to the last expression in them, and numbers by themselves are also expressions
             * both the `if` arm and the `else` arm have to be the same data type
@@ -864,3 +864,255 @@
             }
         }
         ```
+
+## Lesson 6
+
+* Enum: a value is one of a possible set of values
+    * like structs, 
+        * can group related data together, therefore custom data type
+        * variants of the enum are namespaced under its identifier, and we use a (`::`) to separate the two
+        * ex.
+        ```
+        enum Message {
+            Quit,
+            Move { x: i32, y: i32 },
+            Write(String),
+            ChangeColor(i32, i32, i32),
+        }
+
+        --> equivalent to but more concise than
+
+        struct QuitMessage; // unit struct
+        struct MoveMessage {
+            x: i32,
+            y: i32,
+        }
+        struct WriteMessage(String); // tuple struct
+        struct ChangeColorMessage(i32, i32, i32); // tuple struct
+
+        --> But if we used the different structs, each of which has its own type, we couldn’t as easily define a function to take any of these kinds of messages as we could with the Message enum, which is a single type
+        ```
+        * can implement methods through `impl`
+        * ex. 
+        ```
+        impl Message {
+            fn call(&self) {
+                // method body would be defined here
+            }
+        }
+
+        let m = Message::Write(String::from("hello"));
+        m.call();
+        ```
+    * unlike structs,
+        * can only be one of the variants
+        * all variants are the same type
+            * can be any type (string, numeric, struct, even another enum *etc.*)
+        * ex. Can be implemented to take a value
+        ```
+        enum IpAddrKind {
+            V4,
+            V6,
+        }
+
+        struct IpAddr {
+            kind: IpAddrKind,
+            address: String,
+        }
+
+        let home = IpAddr {
+            kind: IpAddrKind::V4,
+            address: String::from("127.0.0.1"),
+        };
+
+        let loopback = IpAddr {
+            kind: IpAddrKind::V6,
+            address: String::from("::1"),
+        };
+
+        --> can be re-written like
+
+        enum IpAddr {
+            V4(String),
+            V6(String),
+        }
+
+        let home = IpAddr::V4(String::from("127.0.0.1"));
+
+        let loopback = IpAddr::V6(String::from("::1"));
+        ```
+
+    * `Option` enum:
+        * for a value that can be something or nothing
+        * resolves a common bug in any programming language that implements `null`: 
+            > assuming that something isn’t null when it actually is
+        * so useful that it’s even included in the prelude
+            * you don’t need to bring it into scope explicitly
+        * `Option<T>`: in place of the `null`, it's an enum that encode a value can either be present or absent
+            * ex.
+            ```
+            enum Option<T> {
+                None,
+                Some(T),
+            }
+            ```
+                
+            * `<T>` means that the `Some` variant of the `Option` enum can hold one piece of data of **any type**
+            * that each concrete type that gets used in place of T makes the overall `Option<T>` type a different type
+            * ex. Try adding a `i8` type to an `Option<i8>` type will throw an error
+            ```
+            let x: i8 = 5;
+            let y: Option<i8> = Some(5);
+
+            let sum = x + y;
+            ```
+        * Rust requires us to annotate the overall `Option` type
+            * compiler can't infer what a `None` type should be for its corresponding `Some` variant
+            * ex.
+            ```
+            let absent_number: Option<i32> = None;
+            ```
+        * Together with `match`, implement handling the case of the `Some<T>` variant and handling the case of the `None` variant
+        * ex. 
+        ```
+        fn plus_one(x: Option<i32>) -> Option<i32> {
+            match x {
+                None => None,
+                Some(i) => Some(i + 1),
+            }
+        }
+
+        let five = Some(5);
+        let six = plus_one(five);  --> output Some(6)
+        let none = plus_one(None);  --> output None
+
+
+        --> Does Some(5) match Some(i)? It does! We have the same variant. The i binds to the value contained in Some, so i takes the value 5. The code in the match arm is then executed, so we add 1 to the value of i and create a new Some value with our total 6 inside.
+        ```
+
+    * `match`: compare a value with a series of patterns and execute code only when a (and the first) pattern is matched
+        * unlike `if` statements, the conditions can be evaluated to ANY type other than only Boolean
+        * anatomy
+            * arm: pattern and code separated by `=>` operator
+                * each code associated is an expression
+                * if a code is one line, don't need `{}` and need a `(,)`
+                * if a code is multiple lines, need `{}` and don't need a `(,)`
+            * arms separated by `(,)`
+        ```
+        fn value_in_cents(coin: Coin) -> u8 {
+            match coin {
+                Coin::Penny => {
+                    println!("Lucky penny!");
+                    1
+                }
+                Coin::Nickel => 5,
+                Coin::Dime => 10,
+                Coin::Quarter => 25,
+            }
+        }
+        ```
+        * patterns that bind to values when they match
+        * ex.
+        ```
+        #[derive(Debug)] // so we can inspect the state in a minute
+        enum UsState {
+            Alabama,
+            Alaska,
+            // --snip--
+        }
+
+        enum Coin {
+            Penny,
+            Nickel,
+            Dime,
+            Quarter(UsState),
+        }
+
+
+        fn value_in_cents(coin: Coin) -> u8 {
+            match coin {
+                Coin::Penny => 1,
+                Coin::Nickel => 5,
+                Coin::Dime => 10,
+                Coin::Quarter(state) => {
+                    println!("State quarter from {:?}!", state);
+                    25
+                }
+            }
+        }
+
+        --> if we call value_in_cents(Coin::Quarter(UsState::Alaska)), the "state" is now bound to "UsState::Alaska" because its pattern matched the value
+        ```
+        * matching must be exhaustive
+        * ex. This will complain that we have not handled the `None` type
+        ```
+        fn plus_one(x: Option<i32>) -> Option<i32> {
+            match x {
+                Some(i) => Some(i + 1),
+            }
+        }
+        ``` 
+        * catch-all and (`_`) placeholder: used when special conditions only apply to a few values and the rest take default actions
+            * catch-all condition MUST be at the end, or else other conditions will not be evaluated
+            * ex.
+            ```
+            let dice_roll = 9;
+            match dice_roll {
+                3 => add_fancy_hat(),
+                7 => remove_fancy_hat(),
+                other => move_player(other),
+            }
+
+            fn add_fancy_hat() {}
+            fn remove_fancy_hat() {}
+            fn move_player(num_spaces: u8) {}
+            ```
+            * (`_`) is a special pattern that matches any value and does not bind to that value
+            * ex.
+            ```
+            let dice_roll = 9;
+            match dice_roll {
+                3 => add_fancy_hat(),
+                7 => remove_fancy_hat(),
+                _ => reroll(),
+            }
+
+            fn add_fancy_hat() {}
+            fn remove_fancy_hat() {}
+            fn reroll() {}
+            ```
+        * `if let`: allows less verbose `match` statements
+            * however, it loses the exhaustive checking
+            * syntatic sugar that checks for one pattern and ignores the rest
+            * ex, do nothing for the rest
+            ```
+            let config_max = Some(3u8);
+            match config_max {
+                Some(max) => println!("The maximum is configured to be {}", max),
+                _ => (),
+            }
+
+            --> can be rewritten as
+
+            let config_max = Some(3u8);
+            if let Some(max) = config_max {
+                println!("The maximum is configured to be {}", max);
+            }
+            ```
+            * ex, do the same thing for the rest
+            ```
+            let mut count = 0;
+            match coin {
+                Coin::Quarter(state) => println!("State quarter from {:?}!", state),
+                _ => count += 1,
+            }
+
+            --> can be rewritten as
+
+            let mut count = 0;
+            if let Coin::Quarter(state) = coin {
+                println!("State quarter from {:?}!", state);
+            } else {
+                count += 1;
+            }
+            ```
