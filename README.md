@@ -1122,8 +1122,8 @@ General idea:
 
 ```mermaid
 graph TD;
-    package (Cargo)-->binary crate;
-    package (Cargo)-->library crate;
+    package-->binary crate;
+    package-->library crate;
 ```
 
 * **Crate**: smallest amount of code that the Rust compiler considers at a time
