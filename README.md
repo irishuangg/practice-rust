@@ -1116,3 +1116,11 @@
                 count += 1;
             }
             ```
+## Lesson 7
+
+```mermaid
+graph TD;
+    package-->library;
+    library-->crate;
+```
+
