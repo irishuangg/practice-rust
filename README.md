@@ -1150,11 +1150,153 @@ Rules of number and types of crates you can put per package:
 │   └── Cargo.toml
 ```
 * **Module**: organize code within a crate for readability and easy reuse. Allows control the privacy of items.
-    * Private items are internal implementation details not available for outside use.
+    * Private items are internal implementation details not available for outside use (default).
     * Making modules and the items within them public exposes them to allow external code to use and depend on them
 * **Path**: name the item within a module
+    * An **absolute** path is the full path starting from a crate root; for code from an external crate, the absolute path begins with the crate name, and for code from the current crate, it starts with the literal crate.
+        * equivalent to: `/front_of_house/hosting/add_to_waitlist`
+    * A **relative** path starts from the current module and uses `self`, `super`, or an identifier in the current module.
+        * equivalent to: `front_of_house/hosting/add_to_waitlist`
+* **`pub`**: expose inner parts of child modules’ code to outer ancestor modules
+    * The privacy rules apply to structs, enums, functions, and methods as well as modules
+        * struct
+            * structs are often useful without their fields being public
+            * struct fields follow the general rule of everything being private by default unless annotated with `pub`
+        * enum
+            * enums aren’t very useful unless their variants are public
+            * default for enum variants is to be public
+* **`super`**: construct relative paths that begin in the parent module, rather than the current module or the crate root
+    * the parent module of the imported package has to be the same level as the module calling it
+    * makes rearranging the module tree easier if the parent is moved elsewhere 
+    * have fewer places to update code in the future if this code gets moved to a different module
+
 * **`use`**: bring the item from a path into scope
-* **`public`**: make an item public
+    * try to be idiomatic by specifying the module that a function comes from
+    * ex.
+    ```
+    use crate::front_of_house::hosting;
+
+    mod customer {
+        pub fn eat_at_restaurant() {
+            hosting::add_to_waitlist();
+        }
+    }
+    ```
+    * when two items are the same name, the above is mandatory
+    * ex.
+    ```
+    use std::fmt;
+    use std::io;
+
+    fn function1() -> fmt::Result {
+        // --snip--
+    }
+
+    fn function2() -> io::Result<()> {
+        // --snip--
+    }
+    ```
+    * or use an alias with the `as` keyword
+    * ex.
+    ```
+    use std::fmt::Result;
+    use std::io::Result as IoResult;
+
+    fn function1() -> Result {
+        // --snip--
+    }
+
+    fn function2() -> IoResult<()> {
+        // --snip--
+    }
+    ```
+    * use `pub use` to re-export an item to make it available for others to bring into their scope. (`restaurant::front_of_house::hosting::add_to_waitlist()` is now `restaurant::hosting::add_to_waitlist()`)
+    * ex.
+    ```
+        mod front_of_house {
+            pub mod hosting {
+                pub fn add_to_waitlist() {}
+            }
+        }
+
+        pub use crate::front_of_house::hosting;
+
+        pub fn eat_at_restaurant() {
+            hosting::add_to_waitlist();
+        }
+    ```
+    * use external packages by putting them in the `Cargo.toml` file
+    * standard libraries still need to brought in via `use`
+    * tidying up items from the same package:
+        * nesting paths
+        * ex.
+        ```
+        use std::{cmp::Ordering, io};
+
+        same as
+
+        use std::cmp::Ordering;
+        use std::io;
+        ```
+        * using `self` keyword
+        * ex.
+        ```
+        use std::io::{self, Write};
+
+        same as
+
+        use std::io;
+        use std::io::Write;
+        ```
+        * glob operator: make it harder to tell what names are in scope and where a name used in your program was defined.
+        * ex.
+        ```
+        use std::collections::*;
+        ```
+* separating modules into individual files
+* ex. Filename: src/lib.rs
+    ```
+    mod front_of_house {
+        pub mod hosting {
+            pub fn add_to_waitlist() {}
+        }
+    }
+
+    pub use crate::front_of_house::hosting;
+
+    pub fn eat_at_restaurant() {
+        hosting::add_to_waitlist();
+    }
+    ```
+    split out src/front_of_house.rs
+    ```
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+    ```
+
+    src/lib.fs becomes
+
+    ```
+    mod front_of_house;
+
+    pub use crate::front_of_house::hosting;
+
+    pub fn eat_at_restaurant() {
+        hosting::add_to_waitlist();
+    }
+    ```
+    split out src/front_of_house/hosting.rs
+    ```
+    pub fn add_to_waitlist() {}
+    ```
+    src/front_of_house.rs becomes
+    ```
+    pub mod hosting;
+    ```
+    * Note that you only need to load a file using a `mod` declaration *once* in your module tree. Once the compiler knows the file is part of the project (and knows where in the module tree the code resides because of where you’ve put the `mod` statement)
+
+ 
 * **Module Cheatsheet**:
 
     * **Start from the crate root**: When compiling a crate, the compiler first looks in the crate root file (usually `src/lib.rs` for a library crate or `src/main.rs` for a binary crate) for code to compile.
@@ -1170,3 +1312,95 @@ Rules of number and types of crates you can put per package:
     * **Private vs public**: Code within a module is private from its parent modules by default. To make a module public, declare it with `pub mod` instead of `mod`. To make items within a public module public as well, use `pub` before their declarations.
     * The `use` keyword: Within a scope, the `use` keyword creates shortcuts to items to reduce repetition of long paths. In any scope that can refer to `crate::garden::vegetables::Asparagus`, you can create a shortcut with `use crate::garden::vegetables::Asparagus;` and from then on you only need to write `Asparagus` to make use of that type in the scope.
 
+
+## Lesson 8
+
+* **collections**: can contain multiple values, so data these collections point to is stored on the heap, which means the amount of data does not need to be known at compile time and can grow or shrink as the program runs.
+    * **vector**: store a variable number of values next to each other
+        * `Vec<T>`: 
+            * more than one value in a single data structure that puts all the values next to each other in memory
+            * can only store values of the same type
+            * ex. Creating a new, empty vector to hold values of type i32
+            ```
+            let v: Vec<i32> = Vec::new();
+            ```
+            * create a Vec<T> with initial values using the `vec!` macro and Rust will infer the type of value you want to store, so you rarely need to do this type annotation
+                * ex.
+                ```
+                let v = vec![1, 2, 3];
+                ```
+            * mutate the vector using the `push` method (i32 type is also inferred here)
+                * ex.
+                ```
+                let mut v = Vec::new();
+
+                v.push(5);
+                v.push(6);
+                v.push(7);
+                v.push(8);
+                ```
+            * reading elements of a vector vis `[]` or `get`
+                * ex.
+                ```
+                let v = vec![1, 2, 3, 4, 5];
+
+                let does_not_exist = &v[100];  --> will panic and crash
+                let does_not_exist = v.get(100);  --> will return None without panicking
+                ```
+            * ownership still applies in that you cannot have mutable and immutable references in the same scope
+                * ex.
+                ```
+                let mut v = vec![1, 2, 3, 4, 5];
+
+                let first = &v[0];
+
+                v.push(6);
+
+                println!("The first element is: {first}");
+                ```
+                * because vectors put the values next to each other in memory, adding a new element onto the end of the vector might require allocating new memory and copying the old elements to the new space, if there isn’t enough room to put all the elements next to each other where the vector is currently stored. In that case, the reference to the first element would be pointing to deallocated memory. The borrowing rules prevent programs from ending up in that situation.
+            * iterating through a vector
+                * ex. an immutable vector
+                ```
+                let v = vec![100, 32, 57];
+                for i in &v {
+                    println!("{i}");
+                }
+                ```
+                * ex. a mutable vector
+                    * use the `*` dereference operator to get to the value in `i` before we can use the `+=` operator
+                ```
+                let mut v = vec![100, 32, 57];
+                for i in &mut v {
+                    *i += 50;
+                }
+                ```
+                * borrowing rule applies here too. The reference to the vector that the for loop holds prevents simultaneous modification of the whole vector
+            * use `Enum` to hold different data types in a vector
+                * pair with `match` to ensure at compile time that every possible case is handled
+                * If you don’t know the exhaustive set of types a program will get at runtime to store in a vector, use a `trait` object
+                * ex.
+                ```
+                enum SpreadsheetCell {
+                    Int(i32),
+                    Float(f64),
+                    Text(String),
+                }
+
+                let row = vec![
+                    SpreadsheetCell::Int(3),
+                    SpreadsheetCell::Text(String::from("blue")),
+                    SpreadsheetCell::Float(10.12),
+                ];
+                ```
+            * dropping a vector drops its elements
+                * ex. 
+                ```
+                {
+                    let v = vec![1, 2, 3, 4];
+
+                    // do stuff with v
+                } // <- v goes out of scope and is freed here
+                ```
+    * **string**: collection of characters
+    * **hash map**: associate a value with a particular key
