@@ -1,9 +1,12 @@
 fn main() {
-    let mut v = vec![1, 2, 3, 4, 5];
+    use std::collections::HashMap;
 
-    let first = &v[0];
+    let &field_name = String::from("Favorite color");
+    let &field_value = String::from("Blue");
 
-    // v.push(6);
-
-    println!("The first element is: {first}");
+    let mut map = HashMap::new();
+    map.insert(&field_name, &field_value);
+    // field_name and field_value are invalid at this point, try using them and
+    // see what compiler error you get!
+    println!("{&field_name}")
 }
