@@ -1403,4 +1403,481 @@ Rules of number and types of crates you can put per package:
                 } // <- v goes out of scope and is freed here
                 ```
     * **string**: collection of characters
-    * **hash map**: associate a value with a particular key
+        * `str` type: string slices in core language
+        * `String` type: standard library, and is growable, mutable, owned, and UTF-8 encoded
+        * creating a string:
+            * either use `to_string` or `String::new()`
+            * ex. 
+            ```
+            let mut s = String::new();
+
+            -----
+            is equivalent to
+            -----
+
+            let data = "initial contents";
+
+            let s = data.to_string();
+
+            // the method also works on a literal directly:
+            let s = "initial contents".to_string();
+            ```
+            * it is UTF-8 encoded so the below are valid
+            ```
+            let hello = String::from("السلام عليكم");
+            let hello = String::from("Dobrý den");
+            let hello = String::from("Hello");
+            let hello = String::from("שָׁלוֹם");
+            let hello = String::from("नमस्ते");
+            let hello = String::from("こんにちは");
+            let hello = String::from("안녕하세요");
+            let hello = String::from("你好");
+            let hello = String::from("Olá");
+            let hello = String::from("Здравствуйте");
+            let hello = String::from("Hola");
+            ```
+        * updating a string:
+            * appending 
+                * with `push_str` 
+                * ex.
+                ```
+                let mut s1 = String::from("foo");
+                let s2 = "bar";
+                s1.push_str(s2);
+                println!("s2 is {s2}");
+
+                ^^^ s2 can be printed because `push_str` does not take ownership
+                ----
+                ```
+                * or `push`
+                * ex.
+                ```
+                let mut s = String::from("lo");
+                s.push('l');
+                ```
+            * concatenating could either 
+                * use `+` operator
+                * ex.
+                ```
+                let s1 = String::from("Hello, ");
+                let s2 = String::from("world!");
+                let s3 = s1 + &s2;
+                ```
+                * The "+" operator uses the "add" method, whose signature looks like:
+                
+                    ```
+                    fn add(self, s: &str) -> String {...}
+                    ```
+                
+                    ^^^ even though `s2` is technically `&String`, it can be coerced into `&str`.
+
+                    * *deref coercion*: turns `&s2` into `&s2[..]`
+
+                    * although `let s3 = s1 + &s2;` looks like it will copy both strings and create a new one, this statement actually takes ownership of `s1`, appends a copy of the contents of `s2`, and then returns ownership of the result.
+
+                * or use `format!` macro
+                * ex.
+                ```
+                If there are too many to use the "+" operator
+
+                let s1 = String::from("tic");
+                let s2 = String::from("tac");
+                let s3 = String::from("toe");
+
+                let s = format!("{s1}-{s2}-{s3}");
+                ```
+        * indexing into strings
+            * NOT POSSIBLE because 
+                * since it's UTF-8 encoded (String = wrapper over a `Vec<u8>`), different languages take different number of bytes to encode a Unicode scalar value
+                    * each character maybe more than 1 byte in length
+                    * ex. each Cyrillic letter takes 2 bytes 
+                    ```
+                    let hello = String::from("Здравствуйте"); --> 24 instead of 12
+                    ```
+                * Rust represents strings in 3 ways:
+                * ex. “नमस्ते” 
+                    * byte
+                        * ex. 18 bytes
+                        ```
+                        [224, 164, 168, 224, 164, 174, 224, 164, 184, 224, 165, 141, 224, 164, 164,
+                        224, 165, 135]
+                        ```
+                    * scalar value (`char` type)
+                        * ex. 
+                        ```
+                        ['न', 'म', 'स', '्', 'त', 'े']
+                        ```
+                    * grapheme clusters ("letters")
+                        * ex.
+                        ```
+                        ["न", "म", "स्", "ते"]
+                        ```
+                * impossible to guarantee indexing to always take constant time (O(1))
+                    * because Rust would have to walk through the contents from the beginning to the index to determine how many valid characters there were.
+        * string slices
+            * ex.
+            ```
+            let hello = "Здравствуйте";
+
+            let s = &hello[0..4]; --> "Зд" because each letter takes 2 bytes
+            ```
+            * can panic at runtime because it's invalid
+            * ex.
+            ```
+            &hello[0..1];
+
+            --> this error
+
+            thread 'main' panicked at 'byte index 1 is not a char boundary; it is inside 'З' (bytes 0..2) of `Здравствуйте`'
+            ```
+        * use methods to be specific on which string representation you refer to
+            * ex. use `chars()` to iterate over characters
+            ```
+            for c in "Зд".chars() {
+                println!("{c}");
+            }
+
+            З
+            д
+            ```
+            * ex. use `bytes()`
+            ```
+            for b in "Зд".bytes() {
+                println!("{b}");
+            }
+
+            208
+            151
+            208
+            180
+            ```
+    * **hash map**: `HashMap<K, V>` associate a value with a particular key
+        * homogenous - keys have to be of the same type, and values have of the same type
+        * least common of 3 types of collections so less support
+        * store data on heap
+        * accessing values
+            * use the `get` method
+            * ex.
+            ```
+            use std::collections::HashMap;
+
+            let mut scores = HashMap::new();
+
+            scores.insert(String::from("Blue"), 10);
+            scores.insert(String::from("Yellow"), 50);
+
+            let team_name = String::from("Blue");
+            let score = scores.get(&team_name).copied().unwrap_or(0);
+
+            --> `.get(&team_name)` returns an Option<&T> type
+            --> `.copied()` makes it into a Option<i32> type
+            --> `.unwrap_or()` sets it to be 0 if there's no value
+            ```
+            * to iterate over a hash map
+            * ex.
+            ```
+            use std::collections::HashMap;
+
+            let mut scores = HashMap::new();
+
+            scores.insert(String::from("Blue"), 10);
+            scores.insert(String::from("Yellow"), 50);
+
+            for (key, value) in &scores {
+                println!("{key}: {value}");
+            }
+            ```
+            * Ownership
+                * if the type has a "Copy" trait, then values are copied into the hash map
+                * if the type is owned like "String", then ownership is moved to the hash map
+                * ex.
+                ```
+                use std::collections::HashMap;
+
+                let field_name = String::from("Favorite color");
+                let field_value = String::from("Blue");
+
+                let mut map = HashMap::new();
+                map.insert(field_name, field_value);
+                // field_name and field_value are invalid at this point, try using them and
+                // see what compiler error you get!
+                ```
+                * If we insert references to values into the hash map, the values won’t be moved into the hash map.
+            * updating a hash map
+                * overwriting a value
+                    * use `.insert()`
+                    * ex.
+                    ```
+                    use std::collections::HashMap;
+
+                    let mut scores = HashMap::new();
+
+                    scores.insert(String::from("Blue"), 10);
+                    scores.insert(String::from("Blue"), 25);
+
+                    println!("{:?}", scores);
+
+                    --> {"Blue": 25}
+                    ```
+                * adding a key and value only if a key doesn't exist
+                    * use `.entry()`
+                    * ex.
+                    ```
+                    use std::collections::HashMap;
+
+                    let mut scores = HashMap::new();
+                    scores.insert(String::from("Blue"), 10);
+
+                    scores.entry(String::from("Yellow")).or_insert(50);
+                    scores.entry(String::from("Blue")).or_insert(50);
+
+                    println!("{:?}", scores);
+                    ```
+                    * `or_insert()` method on `Entry` is defined to return a mutable reference to the value for the corresponding `Entry` key if that key exists, and if not, inserts the parameter as the new value for this key and returns a mutable reference to the new value.
+                * updating a value based on an old value
+                    * ex.
+                    ```
+                    use std::collections::HashMap;
+
+                    let text = "hello world wonderful world";
+
+                    let mut map = HashMap::new();
+
+                    for word in text.split_whitespace() {
+                        let count = map.entry(word).or_insert(0);
+                        *count += 1;
+                    }
+
+                    println!("{:?}", map);
+                    ```
+                    * The `split_whitespace` method returns an iterator over sub-slices, separated by whitespace, of the value in `text`. The `or_insert` method returns a mutable reference (`&mut V`) to the value for the specified key. Here we store that mutable reference in the `count` variable, so in order to assign to that value, we must first dereference `count` using the asterisk (`*`). The mutable reference goes out of scope at the end of the `for` loop, so all of these changes are safe and allowed by the borrowing rules.
+
+## Lesson 9
+
+* Rust does NOT have exceptions
+* Rust has two types of errors:
+    * Unrecoverable: not fixable upon retry, ex. accessing out of bound array element, so the program has to be crashed to stop execution
+        * two ways to cause a panic
+            * take an action
+            * `panic!` macro
+        * By default, these panics will print a failure message, unwind, clean up the stack, and quit.
+            * "aborting" is an alternative to "unwind" without cleaning up
+            * the OS has to clean up the memory that the program was using
+            * you can switch from unwinding to aborting upon a panic by adding `panic = 'abort'` to the appropriate `[profile]` sections in your `Cargo.toml` file
+        * Via an environment variable, you can also have Rust display the call stack when a panic occurs to make it easier to track down the source of the panic.
+        * backtrace: by adding `RUST_BACKTRACE=1` (or any value other than zero), we can see a list of all the functions that have been called to get to this point
+            * ex.
+            ```
+            $ RUST_BACKTRACE=1 cargo run
+
+            thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 99', src/main.rs:4:5
+            stack backtrace:
+            0: rust_begin_unwind
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/std/src/panicking.rs:584:5
+            1: core::panicking::panic_fmt
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:142:14
+            2: core::panicking::panic_bounds_check
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/panicking.rs:84:5
+            3: <usize as core::slice::index::SliceIndex<[T]>>::index
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:242:10
+            4: core::slice::index::<impl core::ops::index::Index<I> for [T]>::index
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/slice/index.rs:18:9
+            5: <alloc::vec::Vec<T,A> as core::ops::index::Index<I>>::index
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/alloc/src/vec/mod.rs:2591:9
+            6: panic::main
+                        at ./src/main.rs:4:5
+            7: core::ops::function::FnOnce::call_once
+                        at /rustc/e092d0b6b43f2de967af0887873151bb1c0b18d3/library/core/src/ops/function.rs:248:5
+            note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+            ```
+            * start at the line where your code is
+    * Recoverable: fixable upon retry, ex. file not found error
+        * `Result<T, E>`: `Result` enum has two variants, `Ok` and `Err`. `T` represents the type of the value that will be returned in a success case within the `Ok` variant, and `E` represents the type of the error that will be returned in a failure case within the `Err` variant.
+            * ie,
+            ```
+            enum Result<T, E> {
+                Ok(T),
+                Err(E),
+            }
+            ```
+        * ex.
+            ```
+            use std::fs::File;
+
+            fn main() {
+                let greeting_file_result = File::open("hello.txt");
+
+                let greeting_file = match greeting_file_result {
+                    Ok(file) => file,
+                    Err(error) => panic!("Problem opening the file: {:?}", error),
+                };
+            }
+            ```
+            * The generic parameter `T` has been filled in by the implementation of `File::open` with the type of the success value, `std::fs::File`, which is a file handle. The type of `E` used in the error value is `std::io::Error`
+            * where `File::open` succeeds, the value in the variable `greeting_file_result` will be an instance of `Ok` that contains a file handle
+            * In the case where it fails, the value in `greeting_file_result` will be an instance of `Err` that contains more information about the kind of error that happened.
+            * Just like `Option` enum, `Result` enum does not need to be brought into scope explicitly
+        * Matching on different errors
+            * different actions for different errors
+            * could use `match` expression
+                * ex.
+                ```
+                use std::fs::File;
+                use std::io::ErrorKind;
+
+                fn main() {
+                    let greeting_file_result = File::open("hello.txt");
+
+                    let greeting_file = match greeting_file_result {
+                        Ok(file) => file,
+                        Err(error) => match error.kind() {
+                            ErrorKind::NotFound => match File::create("hello.txt") {
+                                Ok(fc) => fc,
+                                Err(e) => panic!("Problem creating the file: {:?}", e),
+                            },
+                            other_error => {
+                                panic!("Problem opening the file: {:?}", other_error);
+                            }
+                        },
+                    };
+                }
+                ```
+            * but `match` expressions might get too long, so use closures and the `unwrap_or_else` method to make it more concise
+                * ex.
+                ```
+                use std::fs::File;
+                use std::io::ErrorKind;
+
+                fn main() {
+                    let greeting_file = File::open("hello.txt").unwrap_or_else(|error| {
+                        if error.kind() == ErrorKind::NotFound {
+                            File::create("hello.txt").unwrap_or_else(|error| {
+                                panic!("Problem creating the file: {:?}", error);
+                            })
+                        } else {
+                            panic!("Problem opening the file: {:?}", error);
+                        }
+                    });
+                }
+                ```
+            * or use `unwrap`
+                * ex.
+                ```
+                use std::fs::File;
+
+                fn main() {
+                    let greeting_file = File::open("hello.txt").unwrap();
+                }
+                ```
+            * or use `expect` to customize better error messages
+                * ex.
+                ```
+                use std::fs::File;
+
+                fn main() {
+                    let greeting_file = File::open("hello.txt")
+                        .expect("hello.txt should be included in this project");
+                }
+
+                ```
+        * Propagating errors
+            * When a function’s implementation calls something that might fail, instead of handling the error within the function itself, you can return the error to the calling code so that it can decide what to do.
+            * Useful when we don’t have enough information on what the calling code is actually trying to do, so we propagate all the success or error information upward for it to handle appropriately.
+            * The following code wants to read from the `username_file` and turn the `username` into string, but need to return the error in case there is a failure
+                * ex.
+                ```
+                use std::fs::File;
+                use std::io::{self, Read};
+
+                fn read_username_from_file() -> Result<String, io::Error> {
+                    let username_file_result = File::open("hello.txt");
+
+                    let mut username_file = match username_file_result {
+                        Ok(file) => file,
+                        Err(e) => return Err(e),
+                    };
+
+                    let mut username = String::new();
+
+                    match username_file.read_to_string(&mut username) {
+                        Ok(_) => Ok(username),
+                        Err(e) => Err(e),
+                    }
+                }
+                ```
+            * rewritten using `?` 
+                * ex.
+                ```
+                use std::fs::File;
+                use std::io::{self, Read};
+
+                fn read_username_from_file() -> Result<String, io::Error> {
+                    let mut username_file = File::open("hello.txt")?;
+                    let mut username = String::new();
+                    username_file.read_to_string(&mut username)?;
+                    Ok(username)
+                }
+                ```
+                * if an error occurs, `?` operator will return early out of the whole function and give any `Err` value to the calling code
+                * difference from `match` expressions
+                    * error values that have the `?` operator called on them go through the `from` function, defined in the `From` trait in the standard library, which is used to convert values from one type into another
+                    * if we have a custom `OurError` error type and we also define `impl From<io::Error> for OurError` to construct an instance of `OurError` from an `io::Error`, then the `?` operator calls in the body of `read_username_from_file` will call `from` and convert the error types without needing to add any more code to the function.
+            * can also chain `?`
+                * ex.
+                ```
+                use std::fs::File;
+                use std::io::{self, Read};
+
+                fn read_username_from_file() -> Result<String, io::Error> {
+                    let mut username = String::new();
+
+                    File::open("hello.txt")?.read_to_string(&mut username)?;
+
+                    Ok(username)
+                }
+                ```
+                * We still have a `?` at the end of the `read_to_string` call, and we still return an `Ok` value containing `username` when both `File::open` and `read_to_string` succeed rather than returning errors.
+            * shortest way to write this
+                * ex.
+                ```
+                use std::fs;
+                use std::io;
+
+                fn read_username_from_file() -> Result<String, io::Error> {
+                    fs::read_to_string("hello.txt")
+                }
+                ```
+                * Reading a file into a string is a fairly common operation, so the standard library provides the convenient `fs::read_to_string` function that opens the file, creates a new `String`, reads the contents of the file, puts the contents into that `String`, and returns it
+            * The `?` operator can only be used in functions whose return type is compatible with the value the `?` is used on.
+                * ex.
+                ```
+                use std::fs::File;
+
+                fn main() {
+                    let greeting_file = File::open("hello.txt")?;
+                }
+                ```
+                * This code opens a file, which might fail. The `?` operator follows the `Result` value returned by `File::open`, but this `main` function has the return type of `()`, not `Result`.
+                * can be rewritten like this
+                ```
+                use std::error::Error;
+                use std::fs::File;
+
+                fn main() -> Result<(), Box<dyn Error>> {
+                    let greeting_file = File::open("hello.txt")?;
+
+                    Ok(())
+                }
+                ```
+                * The `Box<dyn Error>` type (“any kind of error.”) is a trait object
+            * `?` can be used with `Option<T>` values as well
+                * ex.
+                ```
+                fn last_char_of_first_line(text: &str) -> Option<char> {
+                    text.lines().next()?.chars().last()
+                }
+                ```
+            * Note that you can use the `?` operator on a `Result` in a function that returns `Result`, and you can use the `?` operator on an `Option` in a function that returns `Option`, but you can’t mix and match.
+    * To panic or Not to panic
+        * `panic!` examples, Prototype Code, and Tests
